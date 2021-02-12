@@ -53,8 +53,8 @@ class Screen(QWidget):
         full_width = size.width()
         full_height = size.height()
 
-        width = min(full_width, full_height * self.ratio)
-        height = min(full_height, full_width / self.ratio)
+        width = int(min(full_width, full_height * self.ratio))
+        height = int(min(full_height, full_width / self.ratio))
 
         self.resize(width, height)
 
@@ -69,7 +69,6 @@ class Screen(QWidget):
 
     @pyqtSlot(bytes)
     def data(self, data):
-        open("dump", "wb").write(data)
         for y in range(SCREEN_HEIGHT):
             for x in range(SCREEN_WIDTH):
                 color = self.isPixelSet(data, x, y)

@@ -9,7 +9,7 @@ Flipper screen streamer
 
 # Installing dependencies
 
-    python3 -v venv venv
+    python3 -m venv venv
     ./venv/bin/pip install -r requirements.txt
 
 # Usage

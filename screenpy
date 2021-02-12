@@ -26,6 +26,12 @@ class Screen(QWidget):
         super().__init__(*args, **kwargs)
         self.resize(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2)
         self.canvas = QImage(128, 64, QImage.Format_Mono)
+        self.canvas.fill(1)
+
+        p = QPainter()
+        p.begin(self.canvas)
+        p.drawText(self.canvas.rect(), Qt.AlignCenter, "Connecting");
+        p.end();
 
         self.adjusted_to_size = (-1, -1)
         self.ratio = 2/1

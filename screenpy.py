@@ -1,5 +1,4 @@
-#!/bin/bash
-"exec" "`dirname $0`/venv/bin/python" "$0" "$@"
+#!venv/bin/python3
 
 import sys
 import serial
@@ -10,11 +9,22 @@ from PyQt5.QtWidgets import *
 
 SCREEN_WIDTH = 128
 SCREEN_HEIGHT = 64
+SCREEN_RATIO = 20
 
 class Worker(QThread):
     screen = pyqtSignal(bytes)
     def run(self):
-        ser = serial.Serial(sys.argv[1])
+        while True:
+            try:
+                ser = serial.Serial(sys.argv[1])
+                break
+            except serial.SerialException as e:
+                if e.errno == 13:
+                    raise e
+                pass
+            except OSError:
+                pass
+
         ser.write(b"screen_stream\r")
         while True:
             ser.read_until(bytes.fromhex('F0E1D2C3'))
@@ -24,8 +34,8 @@ class Worker(QThread):
 class Screen(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.resize(SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2)
-        self.canvas = QImage(128, 64, QImage.Format_Mono)
+        self.resize(SCREEN_WIDTH * SCREEN_RATIO, SCREEN_HEIGHT * SCREEN_RATIO)
+        self.canvas = QImage(128, 64, QImage.Format_RGB32)
         self.canvas.fill(1)
 
         p = QPainter()
@@ -44,8 +54,22 @@ class Screen(QWidget):
 
     def paintEvent(self, event):
         qp = QPainter()
+        #qcolor = QColor(255, 152, 63, 255)
+        #qcolor = QColor(255, 255, 255, 50)
+        qcolor = QColor(0, 0, 0, 50)
         qp.begin(self)
         qp.drawImage(self.rect(), self.canvas)
+
+        w = self.rect().width()
+        h = self.rect().height()
+        wp = self.rect().width() / SCREEN_WIDTH
+        hp = self.rect().height() / SCREEN_HEIGHT
+        for x in range(SCREEN_WIDTH):
+            qp.setPen(QPen(qcolor, 1, Qt.SolidLine))
+            qp.drawLine(int(x * wp), 0, int(x * wp), h)
+        for y in range(SCREEN_HEIGHT):
+            qp.setPen(QPen(qcolor, 1, Qt.SolidLine))
+            qp.drawLine(0, int(y * hp), w, int(y * hp))
         qp.end()
 
     def resizeEvent(self, event):
@@ -78,7 +102,7 @@ class Screen(QWidget):
         for y in range(SCREEN_HEIGHT):
             for x in range(SCREEN_WIDTH):
                 color = self.isPixelSet(data, x, y)
-                self.canvas.setPixel(x, y, color)
+                self.canvas.setPixel(x, y, 0xff8c29 if color else 0x111111)
         self.update()
 
 if __name__ == '__main__':
@@ -86,6 +110,10 @@ if __name__ == '__main__':
         print("Path to serial is required")
         exit(255)
     app = QApplication(sys.argv)
+    monitor = QDesktopWidget().screenGeometry(1)
     widget = Screen()
+    top = (monitor.height() / 2) - (widget.rect().height() / 2)
+    left = (monitor.width() / 2) - (widget.rect().width() / 2)
+    widget.move(monitor.left() + int(left), monitor.top() + int(top))
     widget.show()
     app.exec_()

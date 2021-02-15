@@ -1,0 +1,1 @@
+.\venv\Scripts\python.exe screenpy.py %1

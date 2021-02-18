@@ -6,6 +6,7 @@ import serial
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from math import *
 
 SCREEN_WIDTH = 128
 SCREEN_HEIGHT = 64
@@ -52,6 +53,11 @@ class Screen(QWidget):
         self.worker.setTerminationEnabled(True)
         self.worker.start()
 
+        self.mouse_clicked = 0
+        self.mouse_x = 0
+        self.mouse_y = 0
+        self.setMouseTracking(True)
+
     def paintEvent(self, event):
         qp = QPainter()
         #qcolor = QColor(255, 152, 63, 255)
@@ -70,6 +76,63 @@ class Screen(QWidget):
         for y in range(SCREEN_HEIGHT):
             qp.setPen(QPen(qcolor, 1, Qt.SolidLine))
             qp.drawLine(0, int(y * hp), w, int(y * hp))
+
+        # size up font
+        font = qp.font()
+        font.setPointSize(font.pointSize() * 2)
+        qp.setFont(font)
+        
+        # draw helpers if button is pressed
+        if self.mouse_clicked > 0:
+            mouse_pos = QWidget.mapFromGlobal(self, QCursor.pos())
+            start_x = int(floor(self.mouse_x / wp) * wp + (0.5 * wp))
+            start_y = int(floor(self.mouse_y / hp) * hp + (0.5 * hp))
+            end_x = int(floor(mouse_pos.x() / wp) * wp + (0.5 * wp))
+            end_y = int(floor(mouse_pos.y() / hp) * hp + (0.5 * hp))
+            width = abs(int((end_x - start_x) / wp)) + 1
+            height = abs(int((end_y - start_y) / hp)) + 1
+
+            # draw pixel if clicked, but not dragged
+            if (start_x == end_x) and (start_y == end_y):
+                qp.setPen(QPen(QColor(255, 255, 255, 125), wp, Qt.SolidLine))
+                qp.drawLine(start_x, start_y, end_x, start_y)
+
+            # draw horizontal line
+            if start_x != end_x:
+                qp.setPen(QPen(QColor(255, 0, 0, 125), wp, Qt.SolidLine))
+                qp.drawLine(start_x, start_y, end_x, start_y)
+                
+                qp.setPen(QPen(QColor(0, 0, 0, 255), 1, Qt.SolidLine))
+                qp.setBrush(QBrush(QColor(255, 0, 0, 255)))
+                ppath = QPainterPath()
+                ppath.addText(start_x + (end_x - start_x) / 2, start_y, qp.font(), f'{width}')
+                qp.drawPath(ppath)
+                
+            # draw vertical line
+            if start_y != end_y:
+                qp.setPen(QPen(QColor(0, 255, 0, 125), wp, Qt.SolidLine))
+                qp.drawLine(end_x, start_y, end_x, end_y)
+                
+                qp.setPen(QPen(QColor(0, 0, 0, 255), 1, Qt.SolidLine))
+                qp.setBrush(QBrush(QColor(0, 255, 0, 255)))
+                ppath = QPainterPath()
+                ppath.addText(end_x, start_y + (end_y - start_y) / 2, qp.font(), f'{height}')
+                qp.drawPath(ppath)
+            
+            # set B/W color
+            qp.setPen(QPen(QColor(0, 0, 0, 255), 4, Qt.SolidLine))
+            qp.setBrush(QBrush(QColor(255, 255, 255, 255)))
+            
+            # draw coords text with outline
+            ppath = QPainterPath()
+            ppath.addText(mouse_pos.x(), mouse_pos.y(), qp.font(), f'{floor(mouse_pos.x() / wp)}' + ', ' + f'{floor(mouse_pos.y() / hp)}')
+            qp.drawPath(ppath)
+
+            # draw coords text w/o outline to prevent text thinning
+            qp.setPen(QPen(QColor(0, 0, 0, 0), 4, Qt.SolidLine))
+            qp.setBrush(QBrush(QColor(255, 255, 255, 255)))
+            qp.drawPath(ppath)
+
         qp.end()
 
     def resizeEvent(self, event):
@@ -96,6 +159,20 @@ class Screen(QWidget):
         y &= 7
         i = int(i + x)
         return (frame[i] & (1 << y)) == 0
+
+    def mousePressEvent(self, QMouseEvent):
+        # save click pos
+        self.mouse_clicked = 1
+        self.mouse_x = QMouseEvent.pos().x()
+        self.mouse_y = QMouseEvent.pos().y()
+        self.update()
+
+    def mouseReleaseEvent(self, QMouseEvent):
+        self.mouse_clicked = 0
+        self.update()
+
+    def mouseMoveEvent(self, QMouseEvent):
+        self.update()
 
     @pyqtSlot(bytes)
     def data(self, data):
